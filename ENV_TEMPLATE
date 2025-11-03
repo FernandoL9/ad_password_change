@@ -1,0 +1,14 @@
+# Django
+SECRET_KEY=replace-this
+DEBUG=true
+ALLOWED_HOSTS=*
+
+# Active Directory
+AD_SERVER=
+AD_BASE_DN=DC=,DC=local
+LDAP_TIMEOUT=30
+SSL_VERIFY=false
+
+# Credenciais de admin (não commitar valores reais!)
+AD_ADMIN_USER=
+AD_ADMIN_PASSWORD=changeme

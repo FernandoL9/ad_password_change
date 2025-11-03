@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    container_name: ad_api_web
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Se quiser montar o código local para hot-reload (desative gunicorn e use runserver)
+    # volumes:
+    #   - .:/app
