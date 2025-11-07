@@ -1,6 +1,8 @@
 # Django
+# IMPORTANTE: Gere uma SECRET_KEY segura com pelo menos 50 caracteres
+# Use: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 SECRET_KEY=replace-this
-DEBUG=true
+DEBUG=false
 ALLOWED_HOSTS=*
 
 # Active Directory
@@ -12,3 +14,12 @@ SSL_VERIFY=false
 # Credenciais de admin (não commitar valores reais!)
 AD_ADMIN_USER=
 AD_ADMIN_PASSWORD=changeme
+
+# Configurações de Segurança (aplicadas apenas quando DEBUG=false)
+# Descomente e ajuste conforme necessário se estiver usando HTTPS
+# SECURE_HSTS_SECONDS=31536000
+# SECURE_HSTS_INCLUDE_SUBDOMAINS=true
+# SECURE_HSTS_PRELOAD=false
+# SECURE_SSL_REDIRECT=true
+# SESSION_COOKIE_SECURE=true
+# CSRF_COOKIE_SECURE=true

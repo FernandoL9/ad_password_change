@@ -376,6 +376,10 @@ cp ENV_TEMPLATE .env
 
 Edite o `.env` com suas configurações (veja seção [Configuração](#configuração)).
 
+**Importante para acesso externo:**
+- Configure `ALLOWED_HOSTS=*` ou `ALLOWED_HOSTS=IP_DO_SERVIDOR,localhost` no `.env`
+- Se precisar mudar a porta externa, edite `docker-compose.yml`: `"PORTA_EXTERNA:8000"`
+
 ### Passo 2: Construir e Executar
 
 ```bash
@@ -388,7 +392,19 @@ docker compose up --build -d
 docker compose logs -f
 ```
 
-### Passo 4: Parar
+Verifique se aparece: `Listening at: http://0.0.0.0:8000`
+
+### Passo 4: Verificar Status
+
+```bash
+# Verificar se o container está rodando
+docker ps
+
+# Verificar mapeamento de portas (deve mostrar 0.0.0.0:8000->8000/tcp)
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+```
+
+### Passo 5: Parar
 
 ```bash
 docker compose down
@@ -396,8 +412,18 @@ docker compose down
 
 ### Acessar API
 
+**Localmente (mesmo servidor):**
 - `http://localhost:8000/api/user/exists`
 - `http://localhost:8000/api/password/reset`
+
+**Externamente (de outro computador na rede):**
+- `http://IP_DO_SERVIDOR:8000/api/user/exists`
+- `http://IP_DO_SERVIDOR:8000/api/password/reset`
+
+**Troubleshooting de acesso externo:**
+- Veja a seção [Não consigo acessar a API de fora do Docker](#8-não-consigo-acessar-a-api-de-fora-do-docker)
+- Verifique firewall do Windows (porta 8000 deve estar aberta)
+- Confirme que `ALLOWED_HOSTS` está configurado corretamente
 
 ## Checklist Antes de Usar
 
@@ -436,10 +462,24 @@ docker compose down
 5. **Use HTTPS em produção**
    - Configure um proxy reverso (nginx, Apache) com SSL
    - Não exponha a API diretamente na internet
+   - **IMPORTANTE**: Configure `DEBUG=false` em produção
 
 6. **Políticas de Senha**
    - Configure políticas adequadas no AD
    - Valide complexidade de senhas no frontend
+
+7. **Configurações de Segurança do Django**
+   - Quando `DEBUG=false`, as seguintes configurações são aplicadas automaticamente:
+     - `SECURE_HSTS_SECONDS`: Habilita HTTP Strict Transport Security
+     - `SECURE_SSL_REDIRECT`: Redireciona HTTP para HTTPS
+     - `SESSION_COOKIE_SECURE`: Cookies de sessão apenas via HTTPS
+     - `CSRF_COOKIE_SECURE`: Cookies CSRF apenas via HTTPS
+   - **Aviso sobre HSTS**: Habilite apenas se todo o site for servido via HTTPS, caso contrário pode causar problemas irreversíveis
+
+8. **SECRET_KEY Segura**
+   - Gere uma SECRET_KEY com pelo menos 50 caracteres
+   - Use o comando: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+   - Nunca use valores padrão como `replace-me` ou `django-insecure-*`
 
 ### Variáveis de Ambiente Sensíveis
 
@@ -447,6 +487,25 @@ docker compose down
 - `AD_ADMIN_PASSWORD`
 - `SECRET_KEY`
 - Qualquer senha ou token
+
+### Configurações de Segurança Avançadas
+
+Para personalizar as configurações de segurança em produção, adicione ao `.env`:
+
+```env
+# Configurações de Segurança (aplicadas apenas quando DEBUG=false)
+SECURE_HSTS_SECONDS=31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS=true
+SECURE_HSTS_PRELOAD=false
+SECURE_SSL_REDIRECT=true
+SESSION_COOKIE_SECURE=true
+CSRF_COOKIE_SECURE=true
+```
+
+**Nota**: Se estiver usando um proxy reverso (nginx, Apache) que termina SSL, você pode precisar configurar `SECURE_PROXY_SSL_HEADER`:
+```env
+SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+```
 
 ## Solução de Problemas
 
@@ -541,6 +600,80 @@ django.core.exceptions.ImproperlyConfigured: ...
 - Verifique se o arquivo `.env` existe
 - Confirme que todas as variáveis obrigatórias estão definidas
 - Execute: `python manage.py check`
+
+#### 8. Não consigo acessar a API de fora do Docker
+
+**Sintomas:**
+- API funciona dentro do container, mas não responde de fora
+- Erro de conexão ao tentar acessar `http://IP_DO_SERVIDOR:8000`
+- Timeout ou "Connection refused"
+
+**Soluções:**
+
+1. **Verificar mapeamento de portas do Docker:**
+   ```bash
+   # Verificar se o container está escutando na porta correta
+   docker ps
+   # Deve mostrar algo como: 0.0.0.0:8000->8000/tcp
+   
+   # Verificar logs do container
+   docker compose logs web
+   # Deve mostrar: Listening at: http://0.0.0.0:8000
+   ```
+
+2. **Verificar se a porta está correta:**
+   - O `docker-compose.yml` mapeia `8000:8000` (HOST:CONTAINER)
+   - Se precisar mudar a porta externa, edite: `"PORTA_EXTERNA:8000"`
+   - Exemplo para porta 9000: `"9000:8000"`
+
+3. **Verificar ALLOWED_HOSTS:**
+   - No arquivo `.env`, configure:
+     ```
+     ALLOWED_HOSTS=*,IP_DO_SERVIDOR,localhost
+     ```
+   - Ou para permitir qualquer host (apenas desenvolvimento):
+     ```
+     ALLOWED_HOSTS=*
+     ```
+
+4. **Verificar firewall do Windows:**
+   ```powershell
+   # Verificar se a porta 8000 está aberta
+   Get-NetFirewallRule | Where-Object {$_.DisplayName -like "*8000*"}
+   
+   # Se não estiver, abrir a porta (PowerShell como Administrador)
+   New-NetFirewallRule -DisplayName "API Django" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+   ```
+
+5. **Verificar se o Docker está escutando em todas as interfaces:**
+   - O `entrypoint.sh` já está configurado com `--bind 0.0.0.0:8000`
+   - Isso permite acesso de qualquer IP externo
+
+6. **Testar conectividade:**
+   ```powershell
+   # Do próprio servidor
+   Test-NetConnection -ComputerName localhost -Port 8000
+   
+   # De outro computador na rede
+   Test-NetConnection -ComputerName IP_DO_SERVIDOR -Port 8000
+   ```
+
+7. **Verificar se há conflito de porta:**
+   ```powershell
+   # Verificar se outra aplicação está usando a porta 8000
+   netstat -ano | findstr :8000
+   ```
+
+8. **Reconstruir o container:**
+   ```bash
+   docker compose down
+   docker compose up --build -d
+   ```
+
+9. **Se estiver usando Docker Desktop no Windows:**
+   - Verifique se o WSL2 está configurado corretamente
+   - Pode ser necessário configurar port forwarding no Docker Desktop
+   - Verifique as configurações de rede do Docker Desktop
 
 ### Debug
 
