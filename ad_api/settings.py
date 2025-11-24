@@ -89,6 +89,18 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
 }
 
+# Cache configuration for MFA codes
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+# MFA Configuration
+MFA_CODE_VALIDITY_SECONDS = 300  # 5 minutos
+MFA_CODE_LENGTH = 6  # Tamanho do código (6 dígitos padrão)
+
 # Configurações de Segurança
 # Aplicar configurações de segurança apenas quando DEBUG=False (produção)
 if not DEBUG:
