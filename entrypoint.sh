@@ -7,7 +7,7 @@ if [ -f ./.env ]; then
 fi
 
 # Definir porta (padrão 8000, pode ser sobrescrita por variável de ambiente)
-PORT=${PORT:-8000}
+PORT=${PORT:-7000}
 
 # Checagem básica do Django
 python manage.py check --deploy || true

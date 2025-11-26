@@ -4,11 +4,11 @@ services:
     build: .
     container_name: ad_api_web
     ports:
-      - "8000:8000"  # Formato: "HOST_PORT:CONTAINER_PORT"
+      - "7000:7000"  # Formato: "HOST_PORT:CONTAINER_PORT"
     env_file:
       - .env
     environment:
-      - PORT=8000  # Garantir que a porta do container seja 8000
+      - PORT=7000  # Garantir que a porta do container seja 8000
     restart: unless-stopped
     # Se quiser montar o código local para hot-reload (desative gunicorn e use runserver)
     # volumes:

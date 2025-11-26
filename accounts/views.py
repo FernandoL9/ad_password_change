@@ -8,6 +8,7 @@ from ad_password_change import alterar_senha_ad, ADPasswordChangeError, _prepara
 import pyotp
 import hashlib
 import time
+import base64
 
 
 def _criar_servidor_ldap_com_fallback(ad_server):
@@ -408,9 +409,11 @@ class MFAGenerateCodeView(APIView):
 
         # Criar uma chave secreta única para o usuário baseada no username e SECRET_KEY
         # Isso garante que cada usuário tenha seu próprio código
-        user_secret = hashlib.sha256(
+        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+        hash_bytes = hashlib.sha256(
             f"{settings.SECRET_KEY}:{username}".encode()
-        ).hexdigest()[:32]  # Usar 32 caracteres para a chave
+        ).digest()
+        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
 
         # Criar TOTP com intervalo de 5 minutos (300 segundos)
         totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
@@ -451,9 +454,11 @@ class MFAVerifyCodeView(APIView):
             return Response({'detail': 'code é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Criar a mesma chave secreta usada na geração
-        user_secret = hashlib.sha256(
+        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+        hash_bytes = hashlib.sha256(
             f"{settings.SECRET_KEY}:{username}".encode()
-        ).hexdigest()[:32]
+        ).digest()
+        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
 
         # Criar TOTP com intervalo de 5 minutos
         totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
@@ -513,9 +518,11 @@ class MFAGetCurrentCodeView(APIView):
             return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Criar a mesma chave secreta
-        user_secret = hashlib.sha256(
+        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+        hash_bytes = hashlib.sha256(
             f"{settings.SECRET_KEY}:{username}".encode()
-        ).hexdigest()[:32]
+        ).digest()
+        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
 
         # Criar TOTP
         totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
