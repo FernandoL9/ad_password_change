@@ -82,22 +82,42 @@ class UserExistsView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username é obrigatório',
+                'exists': False,
+                'dn': None
+            }, status=status.HTTP_200_OK)
 
         # Permitir sobrepor credenciais de admin pelo corpo da requisição
         admin_user = (request.data.get('admin_user') or settings.AD_ADMIN_USER)
         admin_password = (request.data.get('admin_password') or settings.AD_ADMIN_PASSWORD)
         if not admin_user or not admin_password:
-            return Response({'detail': 'Credenciais de admin não configuradas'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'Credenciais de admin não configuradas',
+                'exists': False,
+                'dn': None
+            }, status=status.HTTP_200_OK)
 
         try:
             # Usar a nova função que suporta LDAPS com fallback
             server = _criar_servidor_ldap_com_fallback(settings.AD_SERVER)
             conn = _try_bind_methods(server, admin_user, admin_password, settings.AD_BASE_DN)
             if not conn:
-                return Response({'detail': 'Falha ao autenticar admin no AD'}, status=status.HTTP_502_BAD_GATEWAY)
+                return Response({
+                    'success': False,
+                    'detail': 'Falha ao autenticar admin no AD',
+                    'exists': False,
+                    'dn': None
+                }, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'detail': f'Erro ao conectar ao AD: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({
+                'success': False,
+                'detail': f'Erro ao conectar ao AD: {str(e)}',
+                'exists': False,
+                'dn': None
+            }, status=status.HTTP_200_OK)
 
         search_filter = f"(&(objectClass=user)(|(sAMAccountName={username})(userPrincipalName={username})))"
         bases = [
@@ -121,7 +141,11 @@ class UserExistsView(APIView):
         finally:
             conn.unbind()
 
-        return Response({'exists': bool(found_dn), 'dn': found_dn}, status=status.HTTP_200_OK)
+        return Response({
+            'success': True,
+            'exists': bool(found_dn),
+            'dn': found_dn
+        }, status=status.HTTP_200_OK)
 
 
 class UserInfoView(APIView):
@@ -131,22 +155,38 @@ class UserInfoView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username é obrigatório',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         # Permitir sobrepor credenciais de admin pelo corpo da requisição
         admin_user = (request.data.get('admin_user') or settings.AD_ADMIN_USER)
         admin_password = (request.data.get('admin_password') or settings.AD_ADMIN_PASSWORD)
         if not admin_user or not admin_password:
-            return Response({'detail': 'Credenciais de admin não configuradas'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'Credenciais de admin não configuradas',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         try:
             # Usar a nova função que suporta LDAPS com fallback
             server = _criar_servidor_ldap_com_fallback(settings.AD_SERVER)
             conn = _try_bind_methods(server, admin_user, admin_password, settings.AD_BASE_DN)
             if not conn:
-                return Response({'detail': 'Falha ao autenticar admin no AD'}, status=status.HTTP_502_BAD_GATEWAY)
+                return Response({
+                    'success': False,
+                    'detail': 'Falha ao autenticar admin no AD',
+                    'user': None
+                }, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'detail': f'Erro ao conectar ao AD: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({
+                'success': False,
+                'detail': f'Erro ao conectar ao AD: {str(e)}',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         search_filter = f"(&(objectClass=user)(|(sAMAccountName={username})(userPrincipalName={username})))"
         bases = [
@@ -191,9 +231,16 @@ class UserInfoView(APIView):
             conn.unbind()
 
         if not user_info:
-            return Response({'detail': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                'success': False,
+                'detail': 'Usuário não encontrado',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
-        return Response({'user': user_info}, status=status.HTTP_200_OK)
+        return Response({
+            'success': True,
+            'user': user_info
+        }, status=status.HTTP_200_OK)
 
 
 class UserPhoneView(APIView):
@@ -203,22 +250,38 @@ class UserPhoneView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username é obrigatório',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         # Permitir sobrepor credenciais de admin pelo corpo da requisição
         admin_user = (request.data.get('admin_user') or settings.AD_ADMIN_USER)
         admin_password = (request.data.get('admin_password') or settings.AD_ADMIN_PASSWORD)
         if not admin_user or not admin_password:
-            return Response({'detail': 'Credenciais de admin não configuradas'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'Credenciais de admin não configuradas',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         try:
             # Usar a nova função que suporta LDAPS com fallback
             server = _criar_servidor_ldap_com_fallback(settings.AD_SERVER)
             conn = _try_bind_methods(server, admin_user, admin_password, settings.AD_BASE_DN)
             if not conn:
-                return Response({'detail': 'Falha ao autenticar admin no AD'}, status=status.HTTP_502_BAD_GATEWAY)
+                return Response({
+                    'success': False,
+                    'detail': 'Falha ao autenticar admin no AD',
+                    'user': None
+                }, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'detail': f'Erro ao conectar ao AD: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({
+                'success': False,
+                'detail': f'Erro ao conectar ao AD: {str(e)}',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
         # Atributos de telefone no Active Directory
         phone_attributes = [
@@ -279,9 +342,16 @@ class UserPhoneView(APIView):
             conn.unbind()
 
         if not user_found:
-            return Response({'detail': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                'success': False,
+                'detail': 'Usuário não encontrado',
+                'user': None
+            }, status=status.HTTP_200_OK)
 
-        return Response({'user': user_phones}, status=status.HTTP_200_OK)
+        return Response({
+            'success': True,
+            'user': user_phones
+        }, status=status.HTTP_200_OK)
 
 
 class ListUsersView(APIView):
@@ -293,10 +363,19 @@ class ListUsersView(APIView):
         admin_user = (request.data.get('admin_user') or settings.AD_ADMIN_USER)
         admin_password = (request.data.get('admin_password') or settings.AD_ADMIN_PASSWORD)
         if not admin_user or not admin_password:
-            return Response({'detail': 'Credenciais de admin não configuradas'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'Credenciais de admin não configuradas',
+                'count': 0,
+                'users': []
+            }, status=status.HTTP_200_OK)
 
         # Parâmetros opcionais
-        limit = int(request.data.get('limit', 100))  # Limite padrão de 100 usuários
+        try:
+            limit = int(request.data.get('limit', 100))  # Limite padrão de 100 usuários
+        except (ValueError, TypeError):
+            limit = 100
+        
         # Incluir telefones por padrão
         default_attributes = [
             'sAMAccountName', 'displayName', 'userPrincipalName', 'mail', 'cn',
@@ -313,9 +392,19 @@ class ListUsersView(APIView):
             server = _criar_servidor_ldap_com_fallback(settings.AD_SERVER)
             conn = _try_bind_methods(server, admin_user, admin_password, settings.AD_BASE_DN)
             if not conn:
-                return Response({'detail': 'Falha ao autenticar admin no AD'}, status=status.HTTP_502_BAD_GATEWAY)
+                return Response({
+                    'success': False,
+                    'detail': 'Falha ao autenticar admin no AD',
+                    'count': 0,
+                    'users': []
+                }, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'detail': f'Erro ao conectar ao AD: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({
+                'success': False,
+                'detail': f'Erro ao conectar ao AD: {str(e)}',
+                'count': 0,
+                'users': []
+            }, status=status.HTTP_200_OK)
 
         search_filter = "(&(objectClass=user)(objectCategory=person))"
         bases = [
@@ -361,6 +450,7 @@ class ListUsersView(APIView):
             conn.unbind()
 
         return Response({
+            'success': True,
             'count': len(users),
             'users': users[:limit]
         }, status=status.HTTP_200_OK)
@@ -375,9 +465,15 @@ class PasswordResetView(APIView):
         force_change_next_logon = bool(request.data.get('force_change_next_logon', True))
 
         if not username or not new_password:
-            return Response({'detail': 'username e new_password são obrigatórios'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username e new_password são obrigatórios'
+            }, status=status.HTTP_200_OK)
         if not admin_user or not admin_password:
-            return Response({'detail': 'Credenciais de admin não configuradas'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'Credenciais de admin não configuradas'
+            }, status=status.HTTP_200_OK)
 
         try:
             ok = alterar_senha_ad(
@@ -392,9 +488,15 @@ class PasswordResetView(APIView):
             )
             return Response({'success': bool(ok)}, status=status.HTTP_200_OK)
         except ADPasswordChangeError as e:
-            return Response({'success': False, 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': str(e)
+            }, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'success': False, 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({
+                'success': False,
+                'detail': str(e)
+            }, status=status.HTTP_200_OK)
 
 
 class MFAGenerateCodeView(APIView):
@@ -405,38 +507,56 @@ class MFAGenerateCodeView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username é obrigatório',
+                'code': None,
+                'username': None,
+                'valid_for_seconds': None,
+                'expires_at': None
+            }, status=status.HTTP_200_OK)
 
-        # Criar uma chave secreta única para o usuário baseada no username e SECRET_KEY
-        # Isso garante que cada usuário tenha seu próprio código
-        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-        hash_bytes = hashlib.sha256(
-            f"{settings.SECRET_KEY}:{username}".encode()
-        ).digest()
-        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
+        try:
+            # Criar uma chave secreta única para o usuário baseada no username e SECRET_KEY
+            # Isso garante que cada usuário tenha seu próprio código
+            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+            hash_bytes = hashlib.sha256(
+                f"{settings.SECRET_KEY}:{username}".encode()
+            ).digest()
+            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
 
-        # Criar TOTP com intervalo de 5 minutos (300 segundos)
-        totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-        
-        # Gerar código atual
-        current_code = totp.now()
-        
-        # Calcular tempo restante até o próximo código
-        current_time = int(time.time())
-        interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
-        time_remaining = interval - (current_time % interval)
-        
-        # Armazenar código no cache com chave única para evitar reuso
-        cache_key = f"mfa_code_{username}_{current_time // interval}"
-        cache.set(cache_key, current_code, timeout=interval + 10)  # +10 segundos de margem
+            # Criar TOTP com intervalo de 5 minutos (300 segundos)
+            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
+            
+            # Gerar código atual
+            current_code = totp.now()
+            
+            # Calcular tempo restante até o próximo código
+            current_time = int(time.time())
+            interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
+            time_remaining = interval - (current_time % interval)
+            
+            # Armazenar código no cache com chave única para evitar reuso
+            cache_key = f"mfa_code_{username}_{current_time // interval}"
+            cache.set(cache_key, current_code, timeout=interval + 10)  # +10 segundos de margem
 
-        return Response({
-            'code': current_code,
-            'username': username,
-            'valid_for_seconds': time_remaining,
-            'expires_at': current_time + time_remaining,
-            'message': f'Código válido por {time_remaining} segundos'
-        }, status=status.HTTP_200_OK)
+            return Response({
+                'success': True,
+                'code': current_code,
+                'username': username,
+                'valid_for_seconds': time_remaining,
+                'expires_at': current_time + time_remaining,
+                'message': f'Código válido por {time_remaining} segundos'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'detail': f'Erro ao gerar código MFA: {str(e)}',
+                'code': None,
+                'username': username,
+                'valid_for_seconds': None,
+                'expires_at': None
+            }, status=status.HTTP_200_OK)
 
 
 class MFAVerifyCodeView(APIView):
@@ -449,62 +569,80 @@ class MFAVerifyCodeView(APIView):
         code = request.data.get('code', '').strip()
         
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
-        if not code:
-            return Response({'detail': 'code é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Criar a mesma chave secreta usada na geração
-        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-        hash_bytes = hashlib.sha256(
-            f"{settings.SECRET_KEY}:{username}".encode()
-        ).digest()
-        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
-
-        # Criar TOTP com intervalo de 5 minutos
-        totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-        
-        # Verificar código atual e do período anterior (tolerância de clock skew)
-        current_time = int(time.time())
-        interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
-        
-        # Verificar código atual
-        is_valid = totp.verify(code, for_time=current_time)
-        
-        # Se não for válido, tentar com período anterior (para tolerância)
-        if not is_valid:
-            previous_time = current_time - interval
-            is_valid = totp.verify(code, for_time=previous_time)
-        
-        # Verificar também no cache para evitar reuso
-        cache_key_current = f"mfa_code_{username}_{current_time // interval}"
-        cache_key_previous = f"mfa_code_{username}_{(current_time - interval) // interval}"
-        
-        cached_code_current = cache.get(cache_key_current)
-        cached_code_previous = cache.get(cache_key_previous)
-        
-        # Verificar se o código já foi usado
-        code_used_key = f"mfa_used_{username}_{code}"
-        code_used = cache.get(code_used_key)
-        
-        if code_used:
             return Response({
+                'success': False,
                 'valid': False,
-                'detail': 'Código já foi utilizado'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if is_valid:
-            # Marcar código como usado (válido por 10 minutos para evitar reuso)
-            cache.set(code_used_key, True, timeout=600)
-            
-            return Response({
-                'valid': True,
-                'message': 'Código MFA válido'
+                'detail': 'username é obrigatório'
             }, status=status.HTTP_200_OK)
-        else:
+        if not code:
             return Response({
+                'success': False,
                 'valid': False,
-                'detail': 'Código MFA inválido ou expirado'
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'detail': 'code é obrigatório'
+            }, status=status.HTTP_200_OK)
+
+        try:
+            # Criar a mesma chave secreta usada na geração
+            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+            hash_bytes = hashlib.sha256(
+                f"{settings.SECRET_KEY}:{username}".encode()
+            ).digest()
+            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
+
+            # Criar TOTP com intervalo de 5 minutos
+            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
+            
+            # Verificar código atual e do período anterior (tolerância de clock skew)
+            current_time = int(time.time())
+            interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
+            
+            # Verificar código atual
+            is_valid = totp.verify(code, for_time=current_time)
+            
+            # Se não for válido, tentar com período anterior (para tolerância)
+            if not is_valid:
+                previous_time = current_time - interval
+                is_valid = totp.verify(code, for_time=previous_time)
+            
+            # Verificar também no cache para evitar reuso
+            cache_key_current = f"mfa_code_{username}_{current_time // interval}"
+            cache_key_previous = f"mfa_code_{username}_{(current_time - interval) // interval}"
+            
+            cached_code_current = cache.get(cache_key_current)
+            cached_code_previous = cache.get(cache_key_previous)
+            
+            # Verificar se o código já foi usado
+            code_used_key = f"mfa_used_{username}_{code}"
+            code_used = cache.get(code_used_key)
+            
+            if code_used:
+                return Response({
+                    'success': False,
+                    'valid': False,
+                    'detail': 'Código já foi utilizado'
+                }, status=status.HTTP_200_OK)
+
+            if is_valid:
+                # Marcar código como usado (válido por 10 minutos para evitar reuso)
+                cache.set(code_used_key, True, timeout=600)
+                
+                return Response({
+                    'success': True,
+                    'valid': True,
+                    'message': 'Código MFA válido'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'success': False,
+                    'valid': False,
+                    'detail': 'Código MFA inválido ou expirado'
+                }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'valid': False,
+                'detail': f'Erro ao verificar código MFA: {str(e)}'
+            }, status=status.HTTP_200_OK)
 
 
 class MFAGetCurrentCodeView(APIView):
@@ -515,30 +653,48 @@ class MFAGetCurrentCodeView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         if not username:
-            return Response({'detail': 'username é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'detail': 'username é obrigatório',
+                'code': None,
+                'username': None,
+                'valid_for_seconds': None,
+                'expires_at': None
+            }, status=status.HTTP_200_OK)
 
-        # Criar a mesma chave secreta
-        # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-        hash_bytes = hashlib.sha256(
-            f"{settings.SECRET_KEY}:{username}".encode()
-        ).digest()
-        user_secret = base64.b32encode(hash_bytes).decode('utf-8')
+        try:
+            # Criar a mesma chave secreta
+            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
+            hash_bytes = hashlib.sha256(
+                f"{settings.SECRET_KEY}:{username}".encode()
+            ).digest()
+            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
 
-        # Criar TOTP
-        totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-        
-        # Obter código atual
-        current_code = totp.now()
-        
-        # Calcular tempo restante
-        current_time = int(time.time())
-        interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
-        time_remaining = interval - (current_time % interval)
-        
-        return Response({
-            'code': current_code,
-            'username': username,
-            'valid_for_seconds': time_remaining,
-            'expires_at': current_time + time_remaining
-        }, status=status.HTTP_200_OK)
+            # Criar TOTP
+            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
+            
+            # Obter código atual
+            current_code = totp.now()
+            
+            # Calcular tempo restante
+            current_time = int(time.time())
+            interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
+            time_remaining = interval - (current_time % interval)
+            
+            return Response({
+                'success': True,
+                'code': current_code,
+                'username': username,
+                'valid_for_seconds': time_remaining,
+                'expires_at': current_time + time_remaining
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'detail': f'Erro ao obter código MFA: {str(e)}',
+                'code': None,
+                'username': username,
+                'valid_for_seconds': None,
+                'expires_at': None
+            }, status=status.HTTP_200_OK)
 
