@@ -3,7 +3,6 @@ Módulo para alteração de senha no Active Directory via LDAPS
 """
 
 import getpass
-import os
 from ldap3 import Server, Connection, ALL, SIMPLE, NTLM, MODIFY_REPLACE, MODIFY_DELETE, MODIFY_ADD
 from ldap3.core.exceptions import LDAPException, LDAPBindError, LDAPPasswordIsMandatoryError
 import ssl
@@ -340,7 +339,7 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
             methods_to_try = [
                 ("unicodePwd com MODIFY_REPLACE", lambda: connection.modify(
                     user_dn,
-                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]}
+                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]} 
                 )),
                 ("unicodePwd com DELETE+ADD", lambda: connection.modify(
                     user_dn,
@@ -382,14 +381,14 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
                                         # Tentar novamente após STARTTLS
                                         success = connection.modify(
                                             user_dn,
-                                            {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]}
+                                            {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]} 
                                         )
                                         if success:
                                             print(f"✅ Reset realizado após STARTTLS!")
                                             break
                                     except Exception as tls_err:
                                         print(f"   ⚠️  STARTTLS não disponível: {str(tls_err)}")
-                                
+                                        
                                 # Tentar nova conexão LDAPS (com e sem verificação de certificado)
                                 ldaps_server = None
                                 for verify_cert in [False, True]:
@@ -434,7 +433,7 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
                                                 # Tentar reset via LDAPS
                                                 success = ldaps_conn.modify(
                                                     user_dn,
-                                                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]}
+                                                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]} 
                                                 )
                                                 if success:
                                                     print(f"✅ Reset realizado via LDAPS!")
@@ -483,7 +482,7 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
             print("   Tentando alteração com userPassword...")
             success = connection.modify(
                 user_dn,
-                {'userPassword': [(MODIFY_REPLACE, [nova_senha])]}
+                {'userPassword': [(MODIFY_REPLACE, [nova_senha])]} 
             )
             
             if success:
@@ -496,7 +495,7 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
                 nova_senha_encoded = _encode_password(nova_senha)
                 success = connection.modify(
                     user_dn,
-                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]}
+                    {'unicodePwd': [(MODIFY_REPLACE, [nova_senha_encoded])]} 
                 )
                 if success:
                     print("✅ Senha alterada com sucesso usando unicodePwd!")
@@ -563,11 +562,12 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
                     user_dn,
                     {'userAccountControl': [(MODIFY_REPLACE, [str(new_uac)])]}
                 )
-                
                 if uac_success:
                     print("✅ Configurado para alterar senha no próximo logon!")
                 else:
-                    print("⚠️  Senha alterada, mas não foi possível configurar alteração obrigatória")
+                    print("⚠️ Senha alterada, mas não foi possível configurar alteração obrigatória")
+                    print("   erro:", connection.last_error)
+                    print("   result:", connection.result)
             else:
                 print("⚠️  Senha alterada, mas não foi possível ler configurações da conta")
         
@@ -896,14 +896,12 @@ def obter_entrada_usuario():
         else:
             print("\n⚠️  Não foi possível listar usuários")
     else:
-        # Modo 3: Modo rápido com credenciais no ambiente (ex.: .env exportado ou variáveis do shell)
-        admin_user = (os.environ.get("AD_ADMIN_USER") or "").strip()
-        admin_password = os.environ.get("AD_ADMIN_PASSWORD") or ""
-        if not admin_user or not admin_password:
-            raise ValueError(
-                "Modo rápido: defina AD_ADMIN_USER e AD_ADMIN_PASSWORD no ambiente antes de executar."
-            )
-
+        # Modo 3: Modo rápido com credenciais pré-configuradas
+        admin_user = env.AD_ADMIN_USER  # pyright: ignore[reportUndefinedVariable]
+        admin_password = env.AD_ADMIN_PASSWORD  # pyright: ignore[reportUndefinedVariable]
+        # ou
+        # admin_password = r"\QS'25^g*du}<C\3\w"
+        
         print(f"\n🚀 Modo rápido ativado!")
         print(f"   Usando credenciais: {admin_user}")
         
