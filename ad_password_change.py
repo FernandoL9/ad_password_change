@@ -3,6 +3,7 @@ Módulo para alteração de senha no Active Directory via LDAPS
 """
 
 import getpass
+import os
 from ldap3 import Server, Connection, ALL, SIMPLE, NTLM, MODIFY_REPLACE, MODIFY_DELETE, MODIFY_ADD
 from ldap3.core.exceptions import LDAPException, LDAPBindError, LDAPPasswordIsMandatoryError
 import ssl
@@ -895,13 +896,14 @@ def obter_entrada_usuario():
         else:
             print("\n⚠️  Não foi possível listar usuários")
     else:
-        # Modo 3: Modo rápido com credenciais pré-configuradas
-        admin_user = "administrador"
-        admin_password = "ti!@#HBH@#2022@#!"
+        # Modo 3: Modo rápido com credenciais no ambiente (ex.: .env exportado ou variáveis do shell)
+        admin_user = (os.environ.get("AD_ADMIN_USER") or "").strip()
+        admin_password = os.environ.get("AD_ADMIN_PASSWORD") or ""
+        if not admin_user or not admin_password:
+            raise ValueError(
+                "Modo rápido: defina AD_ADMIN_USER e AD_ADMIN_PASSWORD no ambiente antes de executar."
+            )
 
-        # admin_user = "gustavo.melo"
-        # admin_password = "ghas@2025"
-        
         print(f"\n🚀 Modo rápido ativado!")
         print(f"   Usando credenciais: {admin_user}")
         

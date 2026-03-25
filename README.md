@@ -89,8 +89,8 @@ Certifique-se de que a máquina onde a aplicação será executada consegue aces
 
 ```powershell
 # Windows PowerShell
-Test-NetConnection -ComputerName 192.168.100.23 -Port 389  # LDAP
-Test-NetConnection -ComputerName 192.168.100.23 -Port 636  # LDAPS
+Test-NetConnection -ComputerName 192.168.163.170 -Port 389  # LDAP
+Test-NetConnection -ComputerName 192.168.163.170 -Port 636  # LDAPS
 ```
 
 ```bash
@@ -127,6 +127,7 @@ pip install -r requirements.txt
 ```
 
 As seguintes bibliotecas serão instaladas:
+
 - `Django==5.0.6` - Framework web
 - `djangorestframework==3.15.2` - API REST
 - `ldap3==2.9.1` - Cliente LDAP
@@ -175,7 +176,7 @@ AD_ADMIN_PASSWORD=sua-senha-admin
   - LDAP: `ldap://192.168.100.23:389`
 - `AD_BASE_DN`: Substitua pelos valores do seu domínio
   - Para descobrir: No PowerShell do servidor AD: `(Get-ADDomain).DistinguishedName`
-- `SSL_VERIFY`: 
+- `SSL_VERIFY`:
   - `false` = Aceita certificados autoassinados (testes/desenvolvimento)
   - `true` = Exige certificado válido (produção)
 - `SECRET_KEY`: Gere uma chave aleatória:
@@ -201,20 +202,23 @@ SSL_VERIFY = False
 ### Modo Desenvolvimento (Recomendado para testes)
 
 1. **Ativar ambiente virtual** (se criou um):
+
    ```bash
    # Windows
    venv\Scripts\activate
-   
+
    # Linux/Mac
    source venv/bin/activate
    ```
 
 2. **Executar migrações** (se necessário):
+
    ```bash
    python manage.py migrate
    ```
 
 3. **Iniciar servidor de desenvolvimento**:
+
    ```bash
    python manage.py runserver 0.0.0.0:8000
    ```
@@ -238,6 +242,7 @@ python ad_password_change.py
 ```
 
 A aplicação irá solicitar:
+
 1. **Modo de operação**: Próprio usuário ou administrador
 2. **Nome de usuário**: sAMAccountName ou UPN
 3. **Senhas**: Conforme o modo escolhido
@@ -255,6 +260,7 @@ http://localhost:8000/api
 **Endpoint:** `POST /api/user/exists`
 
 **Body:**
+
 ```json
 {
   "username": "usuario.teste"
@@ -262,6 +268,7 @@ http://localhost:8000/api
 ```
 
 **Body com credenciais customizadas (opcional):**
+
 ```json
 {
   "username": "usuario.teste",
@@ -271,6 +278,7 @@ http://localhost:8000/api
 ```
 
 **Resposta de Sucesso (200):**
+
 ```json
 {
   "exists": true,
@@ -279,6 +287,7 @@ http://localhost:8000/api
 ```
 
 **Resposta quando não existe (200):**
+
 ```json
 {
   "exists": false,
@@ -287,6 +296,7 @@ http://localhost:8000/api
 ```
 
 **Exemplo com cURL:**
+
 ```bash
 curl -X POST http://localhost:8000/api/user/exists \
   -H "Content-Type: application/json" \
@@ -300,6 +310,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 **Endpoint:** `POST /api/password/reset`
 
 **Body mínimo:**
+
 ```json
 {
   "username": "usuario.teste",
@@ -308,6 +319,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 ```
 
 **Body completo:**
+
 ```json
 {
   "username": "usuario.teste",
@@ -319,6 +331,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 ```
 
 **Parâmetros:**
+
 - `username` (obrigatório): Nome do usuário (sAMAccountName ou UPN)
 - `new_password` (obrigatório): Nova senha
 - `force_change_next_logon` (opcional, padrão: `true`): Força alteração no próximo logon
@@ -326,6 +339,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 - `admin_password` (opcional): Senha admin (usa do .env se não fornecido)
 
 **Resposta de Sucesso (200):**
+
 ```json
 {
   "success": true
@@ -333,6 +347,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 ```
 
 **Resposta de Erro (400):**
+
 ```json
 {
   "success": false,
@@ -341,6 +356,7 @@ curl -X POST http://localhost:8000/api/user/exists \
 ```
 
 **Exemplo com cURL:**
+
 ```bash
 curl -X POST http://localhost:8000/api/password/reset \
   -H "Content-Type: application/json" \
@@ -352,6 +368,7 @@ curl -X POST http://localhost:8000/api/password/reset \
 ```
 
 **Exemplo com Python (requests):**
+
 ```python
 import requests
 
@@ -377,6 +394,7 @@ cp ENV_TEMPLATE .env
 Edite o `.env` com suas configurações (veja seção [Configuração](#configuração)).
 
 **Importante para acesso externo:**
+
 - Configure `ALLOWED_HOSTS=*` ou `ALLOWED_HOSTS=IP_DO_SERVIDOR,localhost` no `.env`
 - Se precisar mudar a porta externa, edite `docker-compose.yml`: `"PORTA_EXTERNA:8000"`
 
@@ -413,14 +431,17 @@ docker compose down
 ### Acessar API
 
 **Localmente (mesmo servidor):**
-- `http://localhost:8000/api/user/exists`
+
+- `http://localhost:8000/user/exists`
 - `http://localhost:8000/api/password/reset`
 
 **Externamente (de outro computador na rede):**
+
 - `http://IP_DO_SERVIDOR:8000/api/user/exists`
 - `http://IP_DO_SERVIDOR:8000/api/password/reset`
 
 **Troubleshooting de acesso externo:**
+
 - Veja a seção [Não consigo acessar a API de fora do Docker](#8-não-consigo-acessar-a-api-de-fora-do-docker)
 - Verifique firewall do Windows (porta 8000 deve estar aberta)
 - Confirme que `ALLOWED_HOSTS` está configurado corretamente
@@ -484,6 +505,7 @@ docker compose down
 ### Variáveis de Ambiente Sensíveis
 
 ⚠️ **NUNCA** exponha ou commite:
+
 - `AD_ADMIN_PASSWORD`
 - `SECRET_KEY`
 - Qualquer senha ou token
@@ -503,6 +525,7 @@ CSRF_COOKIE_SECURE=true
 ```
 
 **Nota**: Se estiver usando um proxy reverso (nginx, Apache) que termina SSL, você pode precisar configurar `SECURE_PROXY_SSL_HEADER`:
+
 ```env
 SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
 ```
@@ -514,11 +537,13 @@ SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
 #### 1. Erro de Conexão
 
 **Mensagem:**
+
 ```
 Erro ao conectar ao AD: [Errno 10054] ...
 ```
 
 **Soluções:**
+
 - Verifique se o servidor AD está acessível
 - Teste conectividade: `Test-NetConnection -ComputerName IP -Port 389`
 - Verifique firewall (portas 389/636 devem estar abertas)
@@ -527,11 +552,13 @@ Erro ao conectar ao AD: [Errno 10054] ...
 #### 2. Erro SSL/TLS
 
 **Mensagem:**
+
 ```
 Erro SSL/TLS: certificate verify failed
 ```
 
 **Soluções:**
+
 - Configure `SSL_VERIFY=false` no `.env` (apenas para testes)
 - Para produção: Configure certificado válido no servidor AD
 - Certifique-se de que o servidor AD tem certificado LDAPS instalado
@@ -539,11 +566,13 @@ Erro SSL/TLS: certificate verify failed
 #### 3. Usuário Não Encontrado
 
 **Mensagem:**
+
 ```
 {'exists': false, 'dn': null}
 ```
 
 **Soluções:**
+
 - Verifique se o nome de usuário está correto
 - Confirme que `AD_BASE_DN` está correto
 - Usuário pode estar em OU diferente (a busca já verifica várias OUs)
@@ -551,11 +580,13 @@ Erro SSL/TLS: certificate verify failed
 #### 4. Falha na Autenticação de Admin
 
 **Mensagem:**
+
 ```
 {'detail': 'Falha ao autenticar admin no AD'}
 ```
 
 **Soluções:**
+
 - Verifique usuário e senha no `.env`
 - Confirme que o usuário tem permissões de reset de senha
 - Teste login manual no AD com essas credenciais
@@ -563,11 +594,13 @@ Erro SSL/TLS: certificate verify failed
 #### 5. Política de Senha
 
 **Mensagem:**
+
 ```
 Falha na alteração da senha: passwordTooShort
 ```
 
 **Soluções:**
+
 - A senha deve atender políticas do AD:
   - Comprimento mínimo (geralmente 8+ caracteres)
   - Complexidade (maiúsculas, minúsculas, números, símbolos)
@@ -578,11 +611,13 @@ Falha na alteração da senha: passwordTooShort
 #### 6. Erro "UnwillingToPerform"
 
 **Mensagem:**
+
 ```
 Falha na alteração da senha: O servidor não pode executar a operação
 ```
 
 **Soluções:**
+
 - **Mais comum**: Use LDAPS (conexão segura)
   - Configure `AD_SERVER=ldaps://IP:636`
   - Execute script PowerShell no servidor AD
@@ -592,11 +627,13 @@ Falha na alteração da senha: O servidor não pode executar a operação
 #### 7. Django não inicia
 
 **Mensagem:**
+
 ```
 django.core.exceptions.ImproperlyConfigured: ...
 ```
 
 **Soluções:**
+
 - Verifique se o arquivo `.env` existe
 - Confirme que todas as variáveis obrigatórias estão definidas
 - Execute: `python manage.py check`
@@ -604,6 +641,7 @@ django.core.exceptions.ImproperlyConfigured: ...
 #### 8. Não consigo acessar a API de fora do Docker
 
 **Sintomas:**
+
 - API funciona dentro do container, mas não responde de fora
 - Erro de conexão ao tentar acessar `http://IP_DO_SERVIDOR:8000`
 - Timeout ou "Connection refused"
@@ -611,11 +649,12 @@ django.core.exceptions.ImproperlyConfigured: ...
 **Soluções:**
 
 1. **Verificar mapeamento de portas do Docker:**
+
    ```bash
    # Verificar se o container está escutando na porta correta
    docker ps
    # Deve mostrar algo como: 0.0.0.0:8000->8000/tcp
-   
+
    # Verificar logs do container
    docker compose logs web
    # Deve mostrar: Listening at: http://0.0.0.0:8000
@@ -637,10 +676,11 @@ django.core.exceptions.ImproperlyConfigured: ...
      ```
 
 4. **Verificar firewall do Windows:**
+
    ```powershell
    # Verificar se a porta 8000 está aberta
    Get-NetFirewallRule | Where-Object {$_.DisplayName -like "*8000*"}
-   
+
    # Se não estiver, abrir a porta (PowerShell como Administrador)
    New-NetFirewallRule -DisplayName "API Django" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
    ```
@@ -650,21 +690,24 @@ django.core.exceptions.ImproperlyConfigured: ...
    - Isso permite acesso de qualquer IP externo
 
 6. **Testar conectividade:**
+
    ```powershell
    # Do próprio servidor
    Test-NetConnection -ComputerName localhost -Port 8000
-   
+
    # De outro computador na rede
    Test-NetConnection -ComputerName IP_DO_SERVIDOR -Port 8000
    ```
 
 7. **Verificar se há conflito de porta:**
+
    ```powershell
    # Verificar se outra aplicação está usando a porta 8000
    netstat -ano | findstr :8000
    ```
 
 8. **Reconstruir o container:**
+
    ```bash
    docker compose down
    docker compose up --build -d
@@ -825,6 +868,7 @@ ad_password_change/
 ## Suporte
 
 Para problemas, dúvidas ou sugestões:
+
 - Abra uma [Issue no GitHub](https://github.com/FernandoL9/ad_password_change/issues)
 - Verifique a seção [Solução de Problemas](#solução-de-problemas)
 

@@ -5,11 +5,11 @@
 # Use ldap:// para conexão simples ou ldaps:// para conexão segura
 # IMPORTANTE: Após configurar LDAPS no servidor AD, altere para ldaps://
 # AD_SERVER = 'ldap://192.168.100.23:389'  # Altere para 'ldaps://192.168.100.23:636' após configurar LDAPS
-AD_SERVER = 'ldaps://192.168.100.23:636'  # Altere para 'ldaps://192.168.100.23:636' após configurar LDAPS
+AD_SERVER = 'ldaps://192.168.163.170:636'  # Altere para 'ldaps://192.168.100.23:636' após configurar LDAPS
 
 
 # Base DN para busca de usuários (exemplo: DC=empresa,DC=local)
-AD_BASE_DN = 'DC=hbh,DC=local'
+AD_BASE_DN = 'DC=unimeduberaba,DC=local'
 
 # Timeout para conexão LDAP (em segundos)
 LDAP_TIMEOUT = 30
