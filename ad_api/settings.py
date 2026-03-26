@@ -13,7 +13,10 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY', default='replace-me')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+ALLOWED_HOSTS = env.list(
+    'ALLOWED_HOSTS',
+    default=['integracao-ghas.unimeduberaba.com.br', 'localhost', '127.0.0.1'],
+)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -119,7 +122,11 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=True)
     
     # Outras configurações de segurança
-    SECURE_PROXY_SSL_HEADER = env.tuple('SECURE_PROXY_SSL_HEADER', default=None)
+    SECURE_PROXY_SSL_HEADER = env.tuple(
+        'SECURE_PROXY_SSL_HEADER',
+        default=('HTTP_X_FORWARDED_PROTO', 'https'),
+    )
+    USE_X_FORWARDED_HOST = env.bool('USE_X_FORWARDED_HOST', default=True)
     SECURE_CONTENT_TYPE_NOSNIFF = env.bool('SECURE_CONTENT_TYPE_NOSNIFF', default=True)
     SECURE_BROWSER_XSS_FILTER = env.bool('SECURE_BROWSER_XSS_FILTER', default=True)
     X_FRAME_OPTIONS = 'DENY'
@@ -128,4 +135,5 @@ else:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+    USE_X_FORWARDED_HOST = False
 
