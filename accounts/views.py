@@ -28,6 +28,43 @@ def _parse_bool(value, default=True):
     return default
 
 
+def _normalize_mfa_username(username):
+    """Username canônico para o segredo MFA (evita falha por diferença de maiúsculas)."""
+    return (username or '').strip().casefold()
+
+
+def _build_mfa_totp(username):
+    """
+    TOTP alinhado às settings. Retorna (totp, username_canônico) para chaves de cache coerentes.
+    """
+    norm = _normalize_mfa_username(username)
+    hash_bytes = hashlib.sha256(
+        f"{settings.SECRET_KEY}:{norm}".encode()
+    ).digest()
+    user_secret = base64.b32encode(hash_bytes).decode('utf-8')
+    interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
+    digits = getattr(settings, 'MFA_CODE_LENGTH', 6)
+    return (
+        pyotp.TOTP(user_secret, digits=digits, interval=interval),
+        norm,
+    )
+
+
+def _normalize_mfa_code_submitted(code, digits):
+    """
+    Aceita string ou número JSON; repõe zeros à esquerda (ex.: cliente manda 12345 em vez de "012345").
+    Retorna None se ausente; levanta ValueError se formato inválido.
+    """
+    if code is None:
+        return None
+    s = str(code).strip().replace(' ', '')
+    if not s:
+        return None
+    if not s.isdigit() or len(s) > digits:
+        raise ValueError('Código deve conter apenas dígitos e ter o tamanho esperado')
+    return s.zfill(digits) if len(s) < digits else s
+
+
 def _criar_servidor_ldap_com_fallback(ad_server):
     """
     Cria um servidor LDAP com suporte a LDAPS e fallback automático.
@@ -537,28 +574,13 @@ class MFAGenerateCodeView(APIView):
             }, status=status.HTTP_200_OK)
 
         try:
-            # Criar uma chave secreta única para o usuário baseada no username e SECRET_KEY
-            # Isso garante que cada usuário tenha seu próprio código
-            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-            hash_bytes = hashlib.sha256(
-                f"{settings.SECRET_KEY}:{username}".encode()
-            ).digest()
-            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
-
-            # Criar TOTP com intervalo de 5 minutos (300 segundos)
-            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-            
-            # Gerar código atual
+            totp, norm_username = _build_mfa_totp(username)
             current_code = totp.now()
-            
-            # Calcular tempo restante até o próximo código
             current_time = int(time.time())
             interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
             time_remaining = interval - (current_time % interval)
-            
-            # Armazenar código no cache com chave única para evitar reuso
-            cache_key = f"mfa_code_{username}_{current_time // interval}"
-            cache.set(cache_key, current_code, timeout=interval + 10)  # +10 segundos de margem
+            cache_key = f"mfa_code_{norm_username}_{current_time // interval}"
+            cache.set(cache_key, current_code, timeout=interval + 10)
 
             return Response({
                 'success': True,
@@ -581,82 +603,61 @@ class MFAGenerateCodeView(APIView):
 
 class MFAVerifyCodeView(APIView):
     """
-    Verifica se o código MFA fornecido é válido
-    Aceita o código atual ou o código do período anterior (para tolerância de clock skew)
+    Verifica se o código MFA fornecido é válido.
+    Usa janela de ±1 intervalo TOTP (pyotp valid_window) para tolerar borda de período e pequeno skew.
     """
     def post(self, request):
         username = request.data.get('username', '').strip()
-        code = request.data.get('code', '').strip()
-        
+        code = request.data.get('code')
+
         if not username:
             return Response({
                 'success': False,
                 'valid': False,
                 'detail': 'username é obrigatório'
             }, status=status.HTTP_200_OK)
-        if not code:
-            return Response({
-                'success': False,
-                'valid': False,
-                'detail': 'code é obrigatório'
-            }, status=status.HTTP_200_OK)
-
         try:
-            # Criar a mesma chave secreta usada na geração
-            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-            hash_bytes = hashlib.sha256(
-                f"{settings.SECRET_KEY}:{username}".encode()
-            ).digest()
-            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
+            digits = getattr(settings, 'MFA_CODE_LENGTH', 6)
+            try:
+                code_norm = _normalize_mfa_code_submitted(code, digits)
+            except ValueError as e:
+                return Response({
+                    'success': False,
+                    'valid': False,
+                    'detail': str(e)
+                }, status=status.HTTP_200_OK)
 
-            # Criar TOTP com intervalo de 5 minutos
-            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-            
-            # Verificar código atual e do período anterior (tolerância de clock skew)
-            current_time = int(time.time())
-            interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
-            
-            # Verificar código atual
-            is_valid = totp.verify(code, for_time=current_time)
-            
-            # Se não for válido, tentar com período anterior (para tolerância)
-            if not is_valid:
-                previous_time = current_time - interval
-                is_valid = totp.verify(code, for_time=previous_time)
-            
-            # Verificar também no cache para evitar reuso
-            cache_key_current = f"mfa_code_{username}_{current_time // interval}"
-            cache_key_previous = f"mfa_code_{username}_{(current_time - interval) // interval}"
-            
-            cached_code_current = cache.get(cache_key_current)
-            cached_code_previous = cache.get(cache_key_previous)
-            
-            # Verificar se o código já foi usado
-            code_used_key = f"mfa_used_{username}_{code}"
-            code_used = cache.get(code_used_key)
-            
-            if code_used:
+            if not code_norm:
+                return Response({
+                    'success': False,
+                    'valid': False,
+                    'detail': 'code é obrigatório'
+                }, status=status.HTTP_200_OK)
+
+            totp, norm_username = _build_mfa_totp(username)
+            code_used_key = f"mfa_used_{norm_username}_{code_norm}"
+            if cache.get(code_used_key):
                 return Response({
                     'success': False,
                     'valid': False,
                     'detail': 'Código já foi utilizado'
                 }, status=status.HTTP_200_OK)
 
+            # Janela ±1 período: borda de intervalo, pequeno atraso de rede e relógios
+            is_valid = totp.verify(code_norm, valid_window=1)
+
             if is_valid:
-                # Marcar código como usado (válido por 10 minutos para evitar reuso)
                 cache.set(code_used_key, True, timeout=600)
-                
                 return Response({
                     'success': True,
                     'valid': True,
                     'message': 'Código MFA válido'
                 }, status=status.HTTP_200_OK)
-            else:
-                return Response({
-                    'success': False,
-                    'valid': False,
-                    'detail': 'Código MFA inválido ou expirado'
-                }, status=status.HTTP_200_OK)
+            return Response({
+                'success': False,
+                'valid': False,
+                'detail': 'Código MFA inválido ou expirado'
+            }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 'success': False,
@@ -683,20 +684,8 @@ class MFAGetCurrentCodeView(APIView):
             }, status=status.HTTP_200_OK)
 
         try:
-            # Criar a mesma chave secreta
-            # Converter o hash SHA256 para Base32 (formato requerido pelo pyotp)
-            hash_bytes = hashlib.sha256(
-                f"{settings.SECRET_KEY}:{username}".encode()
-            ).digest()
-            user_secret = base64.b32encode(hash_bytes).decode('utf-8')
-
-            # Criar TOTP
-            totp = pyotp.TOTP(user_secret, interval=getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300))
-            
-            # Obter código atual
+            totp, _norm = _build_mfa_totp(username)
             current_code = totp.now()
-            
-            # Calcular tempo restante
             current_time = int(time.time())
             interval = getattr(settings, 'MFA_CODE_VALIDITY_SECONDS', 300)
             time_remaining = interval - (current_time % interval)
