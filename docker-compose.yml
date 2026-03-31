@@ -3,12 +3,26 @@ services:
   web:
     build: .
     container_name: ad_api_web
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        python manage.py check --deploy || true
+        python manage.py migrate --noinput || true
+        exec gunicorn ad_api.wsgi:application \
+          --bind 0.0.0.0:${PORT:-7000} \
+          --workers ${GUNICORN_WORKERS:-1} \
+          --timeout 60 \
+          --access-logfile - \
+          --error-logfile -
     ports:
       - "7000:7000"  # Formato: "HOST_PORT:CONTAINER_PORT"
     env_file:
       - .env
     environment:
       - PORT=7000  # Garantir que a porta do container seja 8000
+      - GUNICORN_WORKERS=1  # Evita inconsistência de LocMemCache entre workers
+      - TZ=America/Sao_Paulo
     restart: unless-stopped
     # Se quiser montar o código local para hot-reload (desative gunicorn e use runserver)
     # volumes:
