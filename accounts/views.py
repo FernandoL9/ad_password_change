@@ -11,6 +11,23 @@ import time
 import base64
 
 
+def _parse_bool(value, default=True):
+    """Converte valores comuns de API para bool de forma segura."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "sim", "s", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "nao", "não", "off"}:
+            return False
+    return default
+
+
 def _criar_servidor_ldap_com_fallback(ad_server):
     """
     Cria um servidor LDAP com suporte a LDAPS e fallback automático.
@@ -462,7 +479,10 @@ class PasswordResetView(APIView):
         new_password = request.data.get('new_password', '')
         admin_user = request.data.get('admin_user') or settings.AD_ADMIN_USER
         admin_password = request.data.get('admin_password') or settings.AD_ADMIN_PASSWORD
-        force_change_next_logon = bool(request.data.get('force_change_next_logon', True))
+        force_change_next_logon = _parse_bool(
+            request.data.get('force_change_next_logon', True),
+            default=True
+        )
 
         if not username or not new_password:
             return Response({

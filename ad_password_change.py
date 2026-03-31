@@ -543,33 +543,17 @@ def alterar_senha_ad(username, senha_antiga, nova_senha, ad_server=None, ad_base
         # Se a alteração foi bem-sucedida, configurar para alterar no próximo logon
         if success and forcar_proximo_logon:
             print("🔧 Configurando para alterar senha no próximo logon...")
-            
-            # Ler o userAccountControl atual
-            connection.search(
+            # Em AD, a forma correta de forçar troca no próximo logon é pwdLastSet=0.
+            must_change_success = connection.modify(
                 user_dn,
-                "(objectClass=*)",
-                attributes=['userAccountControl']
+                {'pwdLastSet': [(MODIFY_REPLACE, ['0'])]}
             )
-            
-            if connection.entries:
-                current_uac = int(str(connection.entries[0].userAccountControl))
-                
-                # Adicionar o bit "User must change password at next logon" (bit 4)
-                new_uac = current_uac | 0x10000  # 65536 = PASSWORD_EXPIRED
-                
-                # Aplicar a nova configuração
-                uac_success = connection.modify(
-                    user_dn,
-                    {'userAccountControl': [(MODIFY_REPLACE, [str(new_uac)])]}
-                )
-                if uac_success:
-                    print("✅ Configurado para alterar senha no próximo logon!")
-                else:
-                    print("⚠️ Senha alterada, mas não foi possível configurar alteração obrigatória")
-                    print("   erro:", connection.last_error)
-                    print("   result:", connection.result)
+            if must_change_success:
+                print("✅ Configurado para alterar senha no próximo logon (pwdLastSet=0)!")
             else:
-                print("⚠️  Senha alterada, mas não foi possível ler configurações da conta")
+                print("⚠️ Senha alterada, mas não foi possível configurar alteração obrigatória")
+                print("   erro:", connection.last_error)
+                print("   result:", connection.result)
         
         if not success:
             error_msg = last_error or connection.last_error or "Erro desconhecido"
